@@ -35,7 +35,6 @@ def build():
         "--name=SegmentLobes",
         "--windowed",  # No console window (GUI only)
         "--onefile",   # Single executable file
-        "--icon=NONE",
         "--add-data", f"segment_lobes.py{':' if sys.platform != 'win32' else ';'}.",
         "--hidden-import=nibabel",
         "--hidden-import=SimpleITK",

@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false  # Continue all builds even if one fails
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ['3.10']

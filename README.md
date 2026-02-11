@@ -25,9 +25,11 @@ Unit (HU) threshold.
 ### Option 1: Download pre-built executable (easiest)
 
 Go to the [Releases page](../../releases) and download the archive for your OS:
-- **Windows**: `SegmentLobes-Windows.zip` — Extract and run `SegmentLobes.exe`
-- **Linux**: `SegmentLobes-Linux.tar.gz` — Extract and run `./SegmentLobes`
-- **macOS**: `SegmentLobes-macOS.zip` — Extract and run `SegmentLobes`
+- **Windows**: `SegmentLobes-Windows.zip` — Extract and run `SegmentLobes.exe` (~260 MB)
+- **macOS**: `SegmentLobes-macOS.zip` — Extract and run `SegmentLobes` (~330 MB)
+- **Linux**: Download from Actions artifacts (may exceed 2GB GitHub release limit)
+
+**Note for Linux users**: If the Linux build isn't available in Releases (exceeds 2GB limit), download it from the [Actions](../../actions) tab instead, or build locally, or use the Docker version (recommended).
 
 *(Releases are automatically built via GitHub Actions when new versions are tagged)*
 
@@ -241,11 +243,11 @@ self-contained-segment/
 | **Prerequisites**          | Docker daemon             | None                      |
 | **Build complexity**       | Simple (5-15 min)         | Moderate (10-30 min, ~10 GB) |
 | **OS portability**         | One image for all         | Separate build per OS     |
-| **File size**              | 3+ GB (image)             | 2-3 GB bundle (per OS)    |
+| **File size**              | 3+ GB (image)             | 260-330 MB (Win/Mac), 4+ GB (Linux) |
 | **Distribution**           | Docker Hub / tar file     | Zip/tar.gz bundle         |
 | **First run setup**        | Model download (~1.5 GB)  | Model download (~1.5 GB)  |
 | **GPU support**            | Easy with nvidia runtime  | Requires CUDA on host     |
-| **Best for**               | Servers, reproducibility, **recommended for most users** | End users who can't install Docker |
+| **Best for**               | Servers, reproducibility, **Linux users**, **recommended** | End users (Windows/Mac) |
 
 ## Building For Multiple Platforms (Developers)
 
@@ -257,6 +259,15 @@ self-contained-segment/
 - ~2-3 GB for final bundle
 
 **Total: ~8-10 GB free space needed**
+
+**Known Issue - Linux Build Size:** The Linux PyInstaller build is significantly larger (~4GB) than Windows (~260MB) or macOS (~330MB) due to:
+- PyInstaller including debug symbols and shared libraries on Linux
+- More comprehensive bundling of system dependencies
+
+**Workarounds for Linux users:**
+1. **Use Docker** (recommended) — much smaller and more reliable
+2. **Build locally** with the `--strip` flag (already in build script)
+3. Download from GitHub Actions artifacts (not subject to 2GB release limit)
 
 **GitHub Actions free runners have ~14GB free space**, but long builds can accumulate logs/caches. If builds fail with "No space left on device":
 
@@ -271,18 +282,25 @@ The repository includes a GitHub Actions workflow that automatically builds exec
 **To trigger a build:**
 
 ```bash
-# Method 1: Create a version tag (recommended for releases)
+# Method 1: Create a version tag (builds all platforms)
 git tag v1.0.0
 git push origin v1.0.0
 
 # Method 2: Manual trigger via GitHub web interface
 # Go to Actions → Build Executables → Run workflow
+# - Select "all" to build all platforms
+# - Or specify: "windows", "linux", "macos", or "windows,macos"
 ```
 
 **Download built executables:**
 - Go to the "Actions" tab in GitHub
 - Click on the latest successful workflow run
 - Download artifacts: `SegmentLobes-windows-latest.zip`, `SegmentLobes-ubuntu-latest.tar.gz`, `SegmentLobes-macos-latest.zip`
+
+**Rebuild only specific platforms:**
+- Go to Actions → Build Executables → Run workflow
+- Enter platform(s): `linux` (or `windows,macos`, etc.)
+- This is useful when only one platform needs fixes (e.g., Linux size optimizations)
 
 **Publishing releases:**
 - When you push a tag (e.g., `v1.0.0`), the workflow automatically creates a GitHub Release

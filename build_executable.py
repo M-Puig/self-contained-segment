@@ -32,7 +32,7 @@ def build():
     print("This may take several minutes due to the large dependencies (PyTorch, TotalSegmentator).")
     print()
     
-    # PyInstaller command
+    # Base PyInstaller command
     cmd = [
         "pyinstaller",
         "--name=SegmentLobes",
@@ -47,8 +47,18 @@ def build():
         "--hidden-import=numpy",
         "--collect-all=totalsegmentator",
         "--collect-all=nnunetv2",
-        "segment_lobes_gui.py",
     ]
+    
+    # Linux-specific optimizations to reduce size
+    if sys.platform == "linux":
+        cmd.extend([
+            "--strip",  # Strip debug symbols from binaries
+            "--exclude-module=matplotlib",
+            "--exclude-module=pytest",
+            "--exclude-module=IPython",
+        ])
+    
+    cmd.append("segment_lobes_gui.py")
     
     # Run PyInstaller
     try:

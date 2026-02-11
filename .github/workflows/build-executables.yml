@@ -5,6 +5,12 @@ on:
     tags:
       - 'v*'  # Trigger on version tags like v1.0.0
   workflow_dispatch:  # Allow manual trigger
+    inputs:
+      platforms:
+        description: 'Platforms to build (comma-separated: windows,linux,macos or "all")'
+        required: false
+        default: 'all'
+        type: string
 
 permissions:
   contents: write  # Required for creating releases
@@ -14,10 +20,21 @@ jobs:
     strategy:
       fail-fast: false  # Continue all builds even if one fails
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: ['3.10']
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: macos
     
     runs-on: ${{ matrix.os }}
+    
+    # Skip this job if platform not requested in manual trigger
+    if: |
+      github.event_name == 'push' || 
+      github.event.inputs.platforms == 'all' ||
+      contains(github.event.inputs.platforms, matrix.platform)
     
     steps:
     - uses: actions/checkout@v4
@@ -35,7 +52,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.10'
     
     - name: Install dependencies
       run: |
@@ -68,6 +85,8 @@ jobs:
         if [ -d "dist/SegmentLobes" ]; then
           echo "SegmentLobes directory exists"
           du -sh dist/SegmentLobes
+          echo "Top 20 largest files/directories:"
+          du -ah dist/SegmentLobes | sort -rh | head -20
         else
           echo "ERROR: SegmentLobes directory not found!"
           exit 1
@@ -85,11 +104,14 @@ jobs:
           zip -r ../"$ARTIFACT_NAME" SegmentLobes
         else
           ARTIFACT_NAME="SegmentLobes-Linux.tar.gz"
+          # Use better compression for Linux (it tends to be larger)
           tar -czf ../"$ARTIFACT_NAME" SegmentLobes
         fi
         cd ..
         echo "Packaged artifact:"
         ls -lh SegmentLobes-* || echo "ERROR: Package not created!"
+        echo "Archive size:"
+        du -h SegmentLobes-*
     
     - name: Upload executable
       uses: actions/upload-artifact@v4
@@ -99,8 +121,23 @@ jobs:
         if-no-files-found: error
         retention-days: 90
     
-    - name: Create Release
+    - name: Check file size for release
       if: startsWith(github.ref, 'refs/tags/')
+      shell: bash
+      run: |
+        FILE_SIZE=$(stat -c%s SegmentLobes-* 2>/dev/null || stat -f%z SegmentLobes-* 2>/dev/null || echo 0)
+        MAX_SIZE=$((2 * 1024 * 1024 * 1024))  # 2GB in bytes
+        echo "File size: $FILE_SIZE bytes"
+        echo "Max allowed: $MAX_SIZE bytes (2GB)"
+        if [ "$FILE_SIZE" -gt "$MAX_SIZE" ]; then
+          echo "::warning::File exceeds GitHub's 2GB release asset limit. Skipping release upload."
+          echo "SKIP_RELEASE=true" >> $GITHUB_ENV
+        else
+          echo "SKIP_RELEASE=false" >> $GITHUB_ENV
+        fi
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/') && env.SKIP_RELEASE != 'true'
       uses: softprops/action-gh-release@v2
       with:
         files: SegmentLobes-*

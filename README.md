@@ -33,7 +33,7 @@ Go to the [Releases page](../../releases) and download the archive for your OS:
 
 ### Option 2: Build it yourself (Linux/Mac/Windows)
 
-**⚠️ Warning**: Building requires 15-20 GB of free disk space and takes 10-30 minutes.
+**⚠️ Warning**: Building requires ~10 GB of free disk space and takes 10-30 minutes.
 
 1. **Install Python 3.10+** (if not already installed)
 
@@ -239,7 +239,7 @@ self-contained-segment/
 | -------------------------- | ------------------------- | ------------------------- |
 | **Ease of use**            | Requires command line     | Double-click GUI          |
 | **Prerequisites**          | Docker daemon             | None                      |
-| **Build complexity**       | Simple (5-15 min)         | Complex (10-30 min, 15+ GB) |
+| **Build complexity**       | Simple (5-15 min)         | Moderate (10-30 min, ~10 GB) |
 | **OS portability**         | One image for all         | Separate build per OS     |
 | **File size**              | 3+ GB (image)             | 2-3 GB bundle (per OS)    |
 | **Distribution**           | Docker Hub / tar file     | Zip/tar.gz bundle         |
@@ -252,15 +252,17 @@ self-contained-segment/
 ### ⚠️ Important Notes on PyInstaller Builds
 
 **Disk Space Requirements:** Building standalone executables with PyInstaller for TotalSegmentator + PyTorch requires:
-- ~5 GB for dependencies
-- ~5-10 GB for PyInstaller build process
+- ~3-4 GB for installed dependencies (PyTorch, TotalSegmentator, etc.)
+- ~2-3 GB for PyInstaller build process (temporary files)
 - ~2-3 GB for final bundle
 
-**GitHub Actions free runners have only 14GB free space**, which may cause builds to fail with "No space left on device" errors. If builds fail:
+**Total: ~8-10 GB free space needed**
 
-1. **Consider Docker instead** for distribution (much more reliable)
-2. **Use self-hosted runners** with more disk space
-3. **Build locally** on machines with adequate storage
+**GitHub Actions free runners have ~14GB free space**, but long builds can accumulate logs/caches. If builds fail with "No space left on device":
+
+1. **Use the cleanup steps** already in the workflow
+2. **Build locally** on machines with adequate storage (recommended for first-time setup)
+3. **Consider Docker instead** for easier distribution
 
 ### Automated builds with GitHub Actions
 

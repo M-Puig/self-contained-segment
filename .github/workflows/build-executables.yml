@@ -16,31 +16,185 @@ permissions:
   contents: write  # Required for creating releases
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false  # Continue all builds even if one fails
-      matrix:
-        include:
-          - os: windows-latest
-            platform: windows
-          - os: ubuntu-latest
-            platform: linux
-          - os: macos-latest
-            platform: macos
-    
-    runs-on: ${{ matrix.os }}
-    
-    # Skip this job if platform not requested in manual trigger
+  build-windows:
+    runs-on: windows-latest
     if: |
       github.event_name == 'push' || 
       github.event.inputs.platforms == 'all' ||
-      contains(github.event.inputs.platforms, matrix.platform)
+      contains(github.event.inputs.platforms, 'windows')
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Free disk space (Ubuntu/macOS)
-      if: runner.os != 'Windows'
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-gui.txt
+    
+    - name: Clean up pip cache to save space
+      run: |
+        pip cache purge
+        df -h
+    
+    - name: Build with PyInstaller
+      run: python build_executable.py
+    
+    - name: Clean up build artifacts to save space
+      shell: bash
+      run: |
+        rm -rf build/ *.spec
+        pip uninstall -y torch torchvision torchaudio || true
+        df -h
+    
+    - name: Check disk space after build
+      run: df -h
+    
+    - name: Verify build output
+      shell: bash
+      run: |
+        echo "Contents of dist/:"
+        ls -lh dist/ || echo "dist/ not found"
+        if [ -d "dist/SegmentLobes" ]; then
+          echo "SegmentLobes directory exists"
+          du -sh dist/SegmentLobes
+          echo "Top 20 largest files/directories:"
+          du -ah dist/SegmentLobes | sort -rh | head -20
+        else
+          echo "ERROR: SegmentLobes directory not found!"
+          exit 1
+        fi
+    
+    - name: Package executable
+      shell: bash
+      run: |
+        cd dist
+        powershell Compress-Archive -Path SegmentLobes -DestinationPath ../SegmentLobes-Windows.zip
+        cd ..
+        echo "Packaged artifact:"
+        ls -lh SegmentLobes-* || echo "ERROR: Package not created!"
+        echo "Archive size:"
+        du -h SegmentLobes-*
+    
+    - name: Upload executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: SegmentLobes-windows-latest
+        path: SegmentLobes-*
+        if-no-files-found: error
+        retention-days: 90
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: SegmentLobes-*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    runs-on: macos-latest
+    if: |
+      github.event_name == 'push' || 
+      github.event.inputs.platforms == 'all' ||
+      contains(github.event.inputs.platforms, 'macos')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Free disk space
+      run: |
+        echo "Before cleanup:"
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        echo "After cleanup:"
+        df -h
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-gui.txt
+    
+    - name: Clean up pip cache to save space
+      run: |
+        pip cache purge
+        df -h
+    
+    - name: Build with PyInstaller
+      run: python build_executable.py
+    
+    - name: Clean up build artifacts to save space
+      shell: bash
+      run: |
+        rm -rf build/ *.spec
+        pip uninstall -y torch torchvision torchaudio || true
+        df -h
+    
+    - name: Check disk space after build
+      run: df -h
+    
+    - name: Verify build output
+      shell: bash
+      run: |
+        echo "Contents of dist/:"
+        ls -lh dist/ || echo "dist/ not found"
+        if [ -d "dist/SegmentLobes" ]; then
+          echo "SegmentLobes directory exists"
+          du -sh dist/SegmentLobes
+          echo "Top 20 largest files/directories:"
+          du -ah dist/SegmentLobes | sort -rh | head -20
+        else
+          echo "ERROR: SegmentLobes directory not found!"
+          exit 1
+        fi
+    
+    - name: Package executable
+      shell: bash
+      run: |
+        cd dist
+        zip -r ../SegmentLobes-macOS.zip SegmentLobes
+        cd ..
+        echo "Packaged artifact:"
+        ls -lh SegmentLobes-* || echo "ERROR: Package not created!"
+        echo "Archive size:"
+        du -h SegmentLobes-*
+    
+    - name: Upload executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: SegmentLobes-macos-latest
+        path: SegmentLobes-*
+        if-no-files-found: error
+        retention-days: 90
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: SegmentLobes-*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' || 
+      github.event.inputs.platforms == 'all' ||
+      contains(github.event.inputs.platforms, 'linux')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Free disk space
       run: |
         echo "Before cleanup:"
         df -h
@@ -96,17 +250,7 @@ jobs:
       shell: bash
       run: |
         cd dist
-        if [ "$RUNNER_OS" == "Windows" ]; then
-          ARTIFACT_NAME="SegmentLobes-Windows.zip"
-          powershell Compress-Archive -Path SegmentLobes -DestinationPath ../"$ARTIFACT_NAME"
-        elif [ "$RUNNER_OS" == "macOS" ]; then
-          ARTIFACT_NAME="SegmentLobes-macOS.zip"
-          zip -r ../"$ARTIFACT_NAME" SegmentLobes
-        else
-          ARTIFACT_NAME="SegmentLobes-Linux.tar.gz"
-          # Use better compression for Linux (it tends to be larger)
-          tar -czf ../"$ARTIFACT_NAME" SegmentLobes
-        fi
+        tar -czf ../SegmentLobes-Linux.tar.gz SegmentLobes
         cd ..
         echo "Packaged artifact:"
         ls -lh SegmentLobes-* || echo "ERROR: Package not created!"
@@ -116,7 +260,7 @@ jobs:
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
-        name: SegmentLobes-${{ matrix.os }}
+        name: SegmentLobes-ubuntu-latest
         path: SegmentLobes-*
         if-no-files-found: error
         retention-days: 90
@@ -125,7 +269,7 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       shell: bash
       run: |
-        FILE_SIZE=$(stat -c%s SegmentLobes-* 2>/dev/null || stat -f%z SegmentLobes-* 2>/dev/null || echo 0)
+        FILE_SIZE=$(stat -c%s SegmentLobes-* 2>/dev/null || echo 0)
         MAX_SIZE=$((2 * 1024 * 1024 * 1024))  # 2GB in bytes
         echo "File size: $FILE_SIZE bytes"
         echo "Max allowed: $MAX_SIZE bytes (2GB)"

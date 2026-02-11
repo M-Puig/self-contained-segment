@@ -63,7 +63,7 @@ jobs:
           echo "SegmentLobes directory exists"
           du -sh dist/SegmentLobes
           echo "Top 20 largest files/directories:"
-          du -ah dist/SegmentLobes | sort -rh | head -20
+          du -ah dist/SegmentLobes | sort -rh | head -20 || true
         else
           echo "ERROR: SegmentLobes directory not found!"
           exit 1
@@ -151,7 +151,7 @@ jobs:
           echo "SegmentLobes directory exists"
           du -sh dist/SegmentLobes
           echo "Top 20 largest files/directories:"
-          du -ah dist/SegmentLobes | sort -rh | head -20
+          du -ah dist/SegmentLobes | sort -rh | head -20 || true
         else
           echo "ERROR: SegmentLobes directory not found!"
           exit 1
@@ -213,6 +213,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements-gui.txt
     
+    - name: Replace with CPU-only PyTorch
+      run: |
+        pip uninstall -y torch torchvision torchaudio
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+    
     - name: Clean up pip cache to save space
       run: |
         pip cache purge
@@ -240,7 +245,7 @@ jobs:
           echo "SegmentLobes directory exists"
           du -sh dist/SegmentLobes
           echo "Top 20 largest files/directories:"
-          du -ah dist/SegmentLobes | sort -rh | head -20
+          du -ah dist/SegmentLobes | sort -rh | head -20 || true
         else
           echo "ERROR: SegmentLobes directory not found!"
           exit 1

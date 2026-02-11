@@ -22,6 +22,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Free disk space (Ubuntu/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        echo "Before cleanup:"
+        df -h
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo apt-get clean || true
+        echo "After cleanup:"
+        df -h
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -32,8 +42,36 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements-gui.txt
     
+    - name: Clean up pip cache to save space
+      run: |
+        pip cache purge
+        df -h
+    
     - name: Build with PyInstaller
       run: python build_executable.py
+    
+    - name: Clean up build artifacts to save space
+      shell: bash
+      run: |
+        rm -rf build/ *.spec
+        pip uninstall -y torch torchvision torchaudio || true
+        df -h
+    
+    - name: Check disk space after build
+      run: df -h
+    
+    - name: Verify build output
+      shell: bash
+      run: |
+        echo "Contents of dist/:"
+        ls -lh dist/ || echo "dist/ not found"
+        if [ -d "dist/SegmentLobes" ]; then
+          echo "SegmentLobes directory exists"
+          du -sh dist/SegmentLobes
+        else
+          echo "ERROR: SegmentLobes directory not found!"
+          exit 1
+        fi
     
     - name: Package executable
       shell: bash
@@ -50,12 +88,15 @@ jobs:
           tar -czf ../\"$ARTIFACT_NAME\" SegmentLobes
         fi
         cd ..
+        echo "Packaged artifact:"
+        ls -lh SegmentLobes-* || echo "ERROR: Package not created!"
     
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
         name: SegmentLobes-${{ matrix.os }}
         path: SegmentLobes-*
+        if-no-files-found: error
         retention-days: 90
     
     - name: Create Release

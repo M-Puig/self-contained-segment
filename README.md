@@ -33,6 +33,8 @@ Go to the [Releases page](../../releases) and download the archive for your OS:
 
 ### Option 2: Build it yourself (Linux/Mac/Windows)
 
+**⚠️ Warning**: Building requires 15-20 GB of free disk space and takes 10-30 minutes.
+
 1. **Install Python 3.10+** (if not already installed)
 
 2. **Clone or download this repository**
@@ -237,14 +239,28 @@ self-contained-segment/
 | -------------------------- | ------------------------- | ------------------------- |
 | **Ease of use**            | Requires command line     | Double-click GUI          |
 | **Prerequisites**          | Docker daemon             | None                      |
+| **Build complexity**       | Simple (5-15 min)         | Complex (10-30 min, 15+ GB) |
 | **OS portability**         | One image for all         | Separate build per OS     |
-| **File size**              | 3+ GB (image)             | 500 MB - 1 GB (per OS)    |
+| **File size**              | 3+ GB (image)             | 2-3 GB bundle (per OS)    |
 | **Distribution**           | Docker Hub / tar file     | Zip/tar.gz bundle         |
 | **First run setup**        | Model download (~1.5 GB)  | Model download (~1.5 GB)  |
 | **GPU support**            | Easy with nvidia runtime  | Requires CUDA on host     |
-| **Best for**               | Servers, reproducibility  | End users, clinical use   |
+| **Best for**               | Servers, reproducibility, **recommended for most users** | End users who can't install Docker |
 
 ## Building For Multiple Platforms (Developers)
+
+### ⚠️ Important Notes on PyInstaller Builds
+
+**Disk Space Requirements:** Building standalone executables with PyInstaller for TotalSegmentator + PyTorch requires:
+- ~5 GB for dependencies
+- ~5-10 GB for PyInstaller build process
+- ~2-3 GB for final bundle
+
+**GitHub Actions free runners have only 14GB free space**, which may cause builds to fail with "No space left on device" errors. If builds fail:
+
+1. **Consider Docker instead** for distribution (much more reliable)
+2. **Use self-hosted runners** with more disk space
+3. **Build locally** on machines with adequate storage
 
 ### Automated builds with GitHub Actions
 

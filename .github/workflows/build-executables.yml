@@ -77,15 +77,15 @@ jobs:
       shell: bash
       run: |
         cd dist
-        if [ \"$RUNNER_OS\" == \"Windows\" ]; then
-          ARTIFACT_NAME=\"SegmentLobes-Windows.zip\"
-          powershell Compress-Archive -Path SegmentLobes -DestinationPath ../\"$ARTIFACT_NAME\"
-        elif [ \"$RUNNER_OS\" == \"macOS\" ]; then
-          ARTIFACT_NAME=\"SegmentLobes-macOS.zip\"
-          zip -r ../\"$ARTIFACT_NAME\" SegmentLobes
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          ARTIFACT_NAME="SegmentLobes-Windows.zip"
+          powershell Compress-Archive -Path SegmentLobes -DestinationPath ../"$ARTIFACT_NAME"
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          ARTIFACT_NAME="SegmentLobes-macOS.zip"
+          zip -r ../"$ARTIFACT_NAME" SegmentLobes
         else
-          ARTIFACT_NAME=\"SegmentLobes-Linux.tar.gz\"
-          tar -czf ../\"$ARTIFACT_NAME\" SegmentLobes
+          ARTIFACT_NAME="SegmentLobes-Linux.tar.gz"
+          tar -czf ../"$ARTIFACT_NAME" SegmentLobes
         fi
         cd ..
         echo "Packaged artifact:"

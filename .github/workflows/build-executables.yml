@@ -55,19 +55,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: SegmentLobes-${{ matrix.os }}
-        path: |
-          SegmentLobes-Windows.zip
-          SegmentLobes-macOS.zip
-          SegmentLobes-Linux.tar.gz
+        path: SegmentLobes-*
         retention-days: 90
     
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v2
       with:
-        files: |
-          SegmentLobes-Windows.zip
-          SegmentLobes-macOS.zip
-          SegmentLobes-Linux.tar.gz
+        files: SegmentLobes-*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

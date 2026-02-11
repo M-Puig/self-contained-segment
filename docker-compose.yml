@@ -1,0 +1,41 @@
+services:
+  # -----------------------------------------------------------------------
+  # CPU variant (default)
+  # -----------------------------------------------------------------------
+  segment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # Mount host DICOM folder → /data/input inside the container
+      - ${DICOM_DIR:-.}:/data/input:ro
+      # Mount host output folder → /data/output
+      - ${OUTPUT_DIR:-.}:/data/output
+      # Persist TotalSegmentator models across runs
+      - tseg-models:/root/.totalsegmentator
+    # Override entrypoint args via: docker compose run segment <args>
+    # Default: list series in the mounted input directory
+    command: ["--input", "/data/input", "--output", "/data/output/lobe_stats.csv", "--list-series"]
+
+  # -----------------------------------------------------------------------
+  # GPU variant – requires NVIDIA Container Toolkit
+  # -----------------------------------------------------------------------
+  segment-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ${DICOM_DIR:-.}:/data/input:ro
+      - ${OUTPUT_DIR:-.}:/data/output
+      - tseg-models:/root/.totalsegmentator
+    command: ["--input", "/data/input", "--output", "/data/output/lobe_stats.csv", "--list-series"]
+
+volumes:
+  tseg-models:

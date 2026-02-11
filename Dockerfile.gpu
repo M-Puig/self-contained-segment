@@ -1,0 +1,36 @@
+# --------------------------------------------------------------------------
+# GPU (CUDA) Dockerfile for segment_lobes
+# --------------------------------------------------------------------------
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pip \
+        python3-dev \
+        libgl1 \
+        libglib2.0-0 \
+        libgomp1 \
+        ffmpeg \
+        wget \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install CUDA-enabled PyTorch
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu118
+
+COPY segment_lobes.py .
+
+# TotalSegmentator downloads models on first run (~1.5 GB).
+# Mount a volume to /root/.totalsegmentator to persist them across runs.
+VOLUME ["/root/.totalsegmentator"]
+
+ENTRYPOINT ["python", "segment_lobes.py"]

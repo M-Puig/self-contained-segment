@@ -1,0 +1,63 @@
+name: Build Executables
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ['3.10']
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-gui.txt
+    
+    - name: Build with PyInstaller
+      run: python build_executable.py
+    
+    - name: Package executable
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          ARTIFACT_NAME="SegmentLobes-Windows.exe"
+          cp dist/SegmentLobes.exe "$ARTIFACT_NAME"
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          ARTIFACT_NAME="SegmentLobes-macOS"
+          cp dist/SegmentLobes "$ARTIFACT_NAME"
+          chmod +x "$ARTIFACT_NAME"
+        else
+          ARTIFACT_NAME="SegmentLobes-Linux"
+          cp dist/SegmentLobes "$ARTIFACT_NAME"
+          chmod +x "$ARTIFACT_NAME"
+        fi
+    
+    - name: Upload executable
+      uses: actions/upload-artifact@v3
+      with:
+        name: SegmentLobes-${{ matrix.os }}
+        path: SegmentLobes-*
+        retention-days: 90
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: SegmentLobes-*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

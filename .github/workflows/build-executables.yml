@@ -6,6 +6,9 @@ on:
       - 'v*'  # Trigger on version tags like v1.0.0
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: write  # Required for creating releases
+
 jobs:
   build:
     strategy:
@@ -35,30 +38,36 @@ jobs:
     - name: Package executable
       shell: bash
       run: |
-        if [ "$RUNNER_OS" == "Windows" ]; then
-          ARTIFACT_NAME="SegmentLobes-Windows.exe"
-          cp dist/SegmentLobes.exe "$ARTIFACT_NAME"
-        elif [ "$RUNNER_OS" == "macOS" ]; then
-          ARTIFACT_NAME="SegmentLobes-macOS"
-          cp dist/SegmentLobes "$ARTIFACT_NAME"
-          chmod +x "$ARTIFACT_NAME"
+        cd dist
+        if [ \"$RUNNER_OS\" == \"Windows\" ]; then
+          ARTIFACT_NAME=\"SegmentLobes-Windows.zip\"
+          powershell Compress-Archive -Path SegmentLobes -DestinationPath ../\"$ARTIFACT_NAME\"
+        elif [ \"$RUNNER_OS\" == \"macOS\" ]; then
+          ARTIFACT_NAME=\"SegmentLobes-macOS.zip\"
+          zip -r ../\"$ARTIFACT_NAME\" SegmentLobes
         else
-          ARTIFACT_NAME="SegmentLobes-Linux"
-          cp dist/SegmentLobes "$ARTIFACT_NAME"
-          chmod +x "$ARTIFACT_NAME"
+          ARTIFACT_NAME=\"SegmentLobes-Linux.tar.gz\"
+          tar -czf ../\"$ARTIFACT_NAME\" SegmentLobes
         fi
+        cd ..
     
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
         name: SegmentLobes-${{ matrix.os }}
-        path: SegmentLobes-*
+        path: |
+          SegmentLobes-Windows.zip
+          SegmentLobes-macOS.zip
+          SegmentLobes-Linux.tar.gz
         retention-days: 90
     
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v2
       with:
-        files: SegmentLobes-*
+        files: |
+          SegmentLobes-Windows.zip
+          SegmentLobes-macOS.zip
+          SegmentLobes-Linux.tar.gz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

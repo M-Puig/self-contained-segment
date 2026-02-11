@@ -2,12 +2,15 @@
 """
 Build script for creating standalone executables using PyInstaller.
 
+Note: Uses --onedir (directory bundle) instead of --onefile because
+PyTorch + TotalSegmentator exceed the 4GB limit for single executables.
+
 Usage:
     python build_executable.py
     
 This will create:
 - dist/SegmentLobes/ containing the executable bundle
-- dist/SegmentLobes.exe (Windows) or dist/SegmentLobes (Linux/Mac)
+- Zip/package the entire directory for distribution
 """
 
 import sys
@@ -34,7 +37,7 @@ def build():
         "pyinstaller",
         "--name=SegmentLobes",
         "--windowed",  # No console window (GUI only)
-        "--onefile",   # Single executable file
+        "--onedir",    # Directory bundle (avoids 4GB limit with --onefile)
         "--add-data", f"segment_lobes.py{':' if sys.platform != 'win32' else ';'}.",
         "--hidden-import=nibabel",
         "--hidden-import=SimpleITK",
@@ -51,20 +54,22 @@ def build():
     try:
         subprocess.run(cmd, check=True)
         print("\n" + "="*60)
-        print("✓ Build successful!")
+        print("[SUCCESS] Build completed!")
         print("="*60)
         
         if sys.platform == "win32":
-            exe_path = Path("dist/SegmentLobes.exe")
+            exe_path = Path("dist/SegmentLobes/SegmentLobes.exe")
         else:
-            exe_path = Path("dist/SegmentLobes")
+            exe_path = Path("dist/SegmentLobes/SegmentLobes")
         
         if exe_path.exists():
             size_mb = exe_path.stat().st_size / (1024 * 1024)
             print(f"\nExecutable: {exe_path.absolute()}")
             print(f"Size: {size_mb:.1f} MB")
-            print("\nNOTE: The executable is large due to PyTorch and TotalSegmentator.")
-            print("On first run, TotalSegmentator will download ~1.5 GB of model weights")
+            print(f"\nBundle directory: {exe_path.parent.absolute()}")
+            print("\nNOTE: The bundle is a directory containing the executable and dependencies.")
+            print("Distribute the entire folder (zip it for easier sharing).")
+            print("\nOn first run, TotalSegmentator will download ~1.5 GB of model weights")
             print("to your home directory (~/.totalsegmentator/).")
         else:
             print(f"\nWARNING: Expected executable not found at {exe_path}")

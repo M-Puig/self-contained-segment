@@ -24,10 +24,10 @@ Unit (HU) threshold.
 
 ### Option 1: Download pre-built executable (easiest)
 
-Go to the [Releases page](../../releases) and download the executable for your OS:
-- **Windows**: `SegmentLobes-Windows.exe`
-- **Linux**: `SegmentLobes-Linux`
-- **macOS**: `SegmentLobes-macOS`
+Go to the [Releases page](../../releases) and download the archive for your OS:
+- **Windows**: `SegmentLobes-Windows.zip` — Extract and run `SegmentLobes.exe`
+- **Linux**: `SegmentLobes-Linux.tar.gz` — Extract and run `./SegmentLobes`
+- **macOS**: `SegmentLobes-macOS.zip` — Extract and run `SegmentLobes`
 
 *(Releases are automatically built via GitHub Actions when new versions are tagged)*
 
@@ -50,12 +50,12 @@ Go to the [Releases page](../../releases) and download the executable for your O
    python build_executable.py
    ```
    
-   This takes **5-10 minutes** and creates a large executable (~500 MB - 1 GB) 
-   containing Python, PyTorch, and TotalSegmentator.
+   This takes **5-10 minutes** and creates a directory bundle in `dist/SegmentLobes/`
+   containing the executable and all dependencies (~500 MB - 1 GB).
 
 5. **Run the GUI**
-   - **Windows**: Double-click `dist/SegmentLobes.exe`
-   - **Linux/Mac**: Run `./dist/SegmentLobes`
+   - **Windows**: Run `dist/SegmentLobes/SegmentLobes.exe`
+   - **Linux/Mac**: Run `./dist/SegmentLobes/SegmentLobes`
 
 ### Using the GUI
 
@@ -239,6 +239,7 @@ self-contained-segment/
 | **Prerequisites**          | Docker daemon             | None                      |
 | **OS portability**         | One image for all         | Separate build per OS     |
 | **File size**              | 3+ GB (image)             | 500 MB - 1 GB (per OS)    |
+| **Distribution**           | Docker Hub / tar file     | Zip/tar.gz bundle         |
 | **First run setup**        | Model download (~1.5 GB)  | Model download (~1.5 GB)  |
 | **GPU support**            | Easy with nvidia runtime  | Requires CUDA on host     |
 | **Best for**               | Servers, reproducibility  | End users, clinical use   |
@@ -263,9 +264,9 @@ git push origin v1.0.0
 **Download built executables:**
 - Go to the "Actions" tab in GitHub
 - Click on the latest successful workflow run
-- Download artifacts: `SegmentLobes-windows-latest`, `SegmentLobes-ubuntu-latest`, `SegmentLobes-macos-latest`
+- Download artifacts: `SegmentLobes-windows-latest.zip`, `SegmentLobes-ubuntu-latest.tar.gz`, `SegmentLobes-macos-latest.zip`
 
 **Publishing releases:**
 - When you push a tag (e.g., `v1.0.0`), the workflow automatically creates a GitHub Release
-- All three platform executables are attached to the release
-- Users can download from the Releases page
+- All three platform bundles are attached to the release as zip/tar.gz files
+- Users can download from the Releases page and extract to run

@@ -56,6 +56,10 @@ def build():
             "--exclude-module=matplotlib",
             "--exclude-module=pytest",
             "--exclude-module=IPython",
+            # Exclude CUDA/GPU libraries (we use CPU-only PyTorch)
+            "--exclude-module=torch.cuda",
+            "--exclude-module=torch.distributed",
+            "--exclude-module=torch.backends.cudnn",
         ])
     
     cmd.append("segment_lobes_gui.py")

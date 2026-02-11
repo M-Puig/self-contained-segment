@@ -162,30 +162,72 @@ def run_totalsegmentator(nifti_path: Path, output_dir: Path, use_gpu: bool | Non
 
     logger.info("Running TotalSegmentator (GPU=%s) …", use_gpu)
 
-    lobes_dir = output_dir / "lobes"
-    lobes_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # With ml=True, TotalSegmentator treats the output path as a file stem
+    # and appends .nii — so output="dir/lobes" creates "dir/lobes.nii".
+    # This matches the clippcair-analyse pattern in nifti2tseg.py.
+    ts_output = output_dir / "lobes"
 
     totalsegmentator(
         input=nifti_path,
-        output=lobes_dir,
+        output=ts_output,
         task="total",
         ml=True,
         roi_subset=LOBE_ROI_SUBSET,
     )
 
-    # TotalSegmentator writes individual lobe files; look for the combined one
-    lobes_file = lobes_dir / "lobes.nii"
-    if not lobes_file.exists():
-        # Older versions may write .nii.gz
-        lobes_file = lobes_dir / "lobes.nii.gz"
+    # Look for the combined lobe mask file in several possible locations
+    candidates = [
+        output_dir / "lobes.nii",       # expected: ml=True appends .nii to output stem
+        output_dir / "lobes.nii.gz",    # some versions use .nii.gz
+        ts_output / "lobes.nii",        # fallback: file inside directory
+        ts_output / "lobes.nii.gz",
+    ]
 
-    if not lobes_file.exists():
-        raise FileNotFoundError(
-            f"TotalSegmentator did not produce a lobe mask in {lobes_dir}. "
-            f"Contents: {list(lobes_dir.iterdir())}"
-        )
+    for lobes_file in candidates:
+        if lobes_file.exists():
+            logger.info("Found lobe mask at %s", lobes_file)
+            return lobes_file
 
-    return lobes_file
+    # Last resort: look for individual per-lobe files (non-ml mode)
+    # and combine them into a single multilabel mask
+    individual_files = {}
+    search_dirs = [output_dir, ts_output] if ts_output.is_dir() else [output_dir]
+    for search_dir in search_dirs:
+        for i, roi_name in enumerate(LOBE_ROI_SUBSET):
+            for ext in [".nii.gz", ".nii"]:
+                candidate = search_dir / f"{roi_name}{ext}"
+                if candidate.exists():
+                    individual_files[i] = candidate
+
+    if individual_files:
+        logger.info("Found %d individual lobe files, combining into multilabel mask…", len(individual_files))
+        combined_mask = None
+        for i, fpath in individual_files.items():
+            lobe_data = nib.load(fpath).get_fdata()
+            lobe_data = np.round(lobe_data).astype(int)
+            if combined_mask is None:
+                combined_mask = np.zeros_like(lobe_data, dtype=int)
+            # Label: 1-5 (will be normalised to 10-14 later by compute_lobe_stats)
+            combined_mask[lobe_data > 0] = i + 1
+
+        combined_path = output_dir / "lobes_combined.nii.gz"
+        ref_img = nib.load(next(iter(individual_files.values())))
+        nib.save(nib.Nifti1Image(combined_mask, ref_img.affine, ref_img.header), combined_path)
+        logger.info("Combined lobe mask saved to %s", combined_path)
+        return combined_path
+
+    # List what TotalSegmentator actually created for debugging
+    all_files = []
+    for d in [output_dir, ts_output] if ts_output.is_dir() else [output_dir]:
+        all_files.extend(list(d.iterdir()))
+
+    raise FileNotFoundError(
+        f"TotalSegmentator did not produce a lobe mask. "
+        f"Searched: {[str(c) for c in candidates]}. "
+        f"Available files: {[str(f) for f in all_files]}"
+    )
 
 
 # ---------------------------------------------------------------------------

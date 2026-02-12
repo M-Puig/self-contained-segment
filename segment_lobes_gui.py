@@ -300,11 +300,14 @@ class SegmentLoblobesGUI:
             )
 
             # Success
+            mask_path = Path(self.output_file.get()).parent / "lobes_mask.nii.gz"
             self.root.after(
                 0,
                 lambda: messagebox.showinfo(
                     "Success",
-                    f"Segmentation completed!\n\nResults saved to:\n{self.output_file.get()}",
+                    f"Segmentation completed!\n\n"
+                    f"CSV results: {self.output_file.get()}\n"
+                    f"Lobe mask:   {mask_path}",
                 ),
             )
 

@@ -12,6 +12,7 @@ from clippcair-analyse/scripts/ into a single command.
 
 import argparse
 import logging
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -405,8 +406,19 @@ def run_pipeline(
 
         stats = compute_lobe_stats(ct_data, lobe_data, voxel_volume, threshold_hu)
 
-    # ---- 5. Write CSV ----------------------------------------------------
-    output_csv.parent.mkdir(parents=True, exist_ok=True)
+        # ---- 5. Copy lobe mask to output directory -----------------------
+        output_csv.parent.mkdir(parents=True, exist_ok=True)
+        mask_output = output_csv.parent / "lobes_mask.nii.gz"
+        # Copy (and compress if source is .nii)
+        if lobes_file.suffix == ".gz":
+            shutil.copy2(lobes_file, mask_output)
+        else:
+            # Re-save as compressed .nii.gz
+            mask_img = nib.load(str(lobes_file))
+            nib.save(mask_img, str(mask_output))
+        logger.info("Lobe mask saved to %s", mask_output)
+
+    # ---- 6. Write CSV ----------------------------------------------------
     df = pd.DataFrame(stats)
     df.to_csv(output_csv, index=False)
     logger.info("Results written to %s", output_csv)

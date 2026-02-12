@@ -23,6 +23,15 @@ import pandas as pd
 import SimpleITK as sitk
 
 # ---------------------------------------------------------------------------
+# Handle sys.stdout/stderr being None (PyInstaller --windowed on Windows)
+# ---------------------------------------------------------------------------
+import os as _os
+if sys.stdout is None:
+    sys.stdout = open(_os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(_os.devnull, "w")
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
@@ -422,18 +431,18 @@ def run_pipeline(
     df = pd.DataFrame(stats)
     df.to_csv(output_csv, index=False)
     logger.info("Results written to %s", output_csv)
-    print(df.to_string(index=False))
+    logger.info("\n%s", df.to_string(index=False))
 
 
 def list_series(dicom_dir: Path) -> None:
     """Print available DICOM series descriptions and exit."""
     series_map = discover_series(dicom_dir)
     if not series_map:
-        print(f"No DICOM series found in {dicom_dir}")
+        logger.info("No DICOM series found in %s", dicom_dir)
         sys.exit(1)
-    print(f"Found {len(series_map)} series in {dicom_dir}:\n")
+    logger.info("Found %d series in %s:", len(series_map), dicom_dir)
     for desc, files in series_map.items():
-        print(f"  • {desc}  ({len(files)} slices)")
+        logger.info("  - %s  (%d slices)", desc, len(files))
     sys.exit(0)
 
 

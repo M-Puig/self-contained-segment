@@ -2,13 +2,18 @@
 """
 Pre-download TotalSegmentator model weights needed for lung lobe segmentation.
 
-Downloads only the two models required for task="total" with roi_subset
-targeting lung lobes:
-  - Task 291: organs (contains lung lobes)
-  - Task 298: crop model (6mm, used for ROI localisation)
+Downloads all models required for task="total" (the lung lobes are
+spread across the five "part" models, and the 6mm crop model is used
+for ROI localisation):
+  - Task 291: part 1 — organs (includes lung lobes)
+  - Task 292: part 2 — vertebrae
+  - Task 293: part 3 — cardiac
+  - Task 294: part 4 — muscles
+  - Task 295: part 5 — ribs
+  - Task 298: crop model (6mm body localisation)
 
-Models are saved to ./totalseg_models/ by default, ready to be bundled
-with PyInstaller.
+Models are saved to ./totalseg_data/nnunet/results/ by default, ready
+to be placed next to the executable.
 
 Usage:
     python download_models.py [--output-dir ./totalseg_models]
@@ -20,8 +25,9 @@ import sys
 from pathlib import Path
 
 
-# Task IDs needed for lung lobe segmentation with roi_subset
-REQUIRED_TASK_IDS = [291, 298]
+# Task IDs needed for task="total" (roi_subset only filters the output,
+# TotalSegmentator still runs all 5 part models + the 6mm crop model)
+REQUIRED_TASK_IDS = [291, 292, 293, 294, 295, 298]
 
 
 def download_models(output_dir: Path) -> None:

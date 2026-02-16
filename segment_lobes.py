@@ -32,14 +32,18 @@ if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
 
 # ---------------------------------------------------------------------------
-# Block all network access — models must be pre-downloaded
+# Block outgoing internet access — models must be pre-downloaded.
+# Local/Unix sockets (used by multiprocessing.managers) are allowed.
 # ---------------------------------------------------------------------------
 import socket as _socket
 
 _original_socket_init = _socket.socket.__init__
 
 
-def _blocked_socket_init(self, *args, **kwargs):
+def _blocked_socket_init(self, family=_socket.AF_INET, type=_socket.SOCK_STREAM, proto=0, fileno=None, *args, **kwargs):
+    # Allow Unix sockets (AF_UNIX) — needed by multiprocessing SyncManager
+    if family == _socket.AF_UNIX:
+        return _original_socket_init(self, family, type, proto, fileno, *args, **kwargs)
     raise OSError(
         "Network access is disabled. "
         "All required data (TotalSegmentator models) must be available locally. "
@@ -293,13 +297,17 @@ def run_totalsegmentator(nifti_path: Path, output_dir: Path, use_gpu: bool | Non
     # This matches the clippcair-analyse pattern in nifti2tseg.py.
     ts_output = output_dir / "lobes"
 
-    totalsegmentator(
-        input=nifti_path,
-        output=ts_output,
-        task="total",
-        ml=True,
-        roi_subset=LOBE_ROI_SUBSET,
-    )
+    try:
+        totalsegmentator(
+            input=nifti_path,
+            output=ts_output,
+            task="total",
+            ml=True,
+            roi_subset=LOBE_ROI_SUBSET,
+        )
+    except Exception as e:
+        logger.error("TotalSegmentator failed: %s", e, exc_info=True)
+        raise
 
     # Look for the combined lobe mask file in several possible locations
     candidates = [

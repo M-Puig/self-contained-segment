@@ -292,3 +292,48 @@ jobs:
         files: SegmentLobes-*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  download-models:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' || 
+      github.event.inputs.platforms == 'all' ||
+      contains(github.event.inputs.platforms, 'models')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install TotalSegmentator
+      run: |
+        python -m pip install --upgrade pip
+        pip install TotalSegmentator
+
+    - name: Download lung lobe models
+      run: python download_models.py
+
+    - name: Package models
+      run: |
+        tar -czf TotalSegmentator-Models.tar.gz totalseg_data/
+        echo "Model archive size:"
+        ls -lh TotalSegmentator-Models.tar.gz
+
+    - name: Upload models artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TotalSegmentator-Models
+        path: TotalSegmentator-Models.tar.gz
+        if-no-files-found: error
+        retention-days: 90
+
+    - name: Upload models to Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: TotalSegmentator-Models.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

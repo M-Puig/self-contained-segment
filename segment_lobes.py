@@ -12,6 +12,7 @@ from clippcair-analyse/scripts/ into a single command.
 
 import argparse
 import logging
+import os
 import shutil
 import sys
 import tempfile
@@ -25,11 +26,31 @@ import SimpleITK as sitk
 # ---------------------------------------------------------------------------
 # Handle sys.stdout/stderr being None (PyInstaller --windowed on Windows)
 # ---------------------------------------------------------------------------
-import os as _os
 if sys.stdout is None:
-    sys.stdout = open(_os.devnull, "w")
+    sys.stdout = open(os.devnull, "w")
 if sys.stderr is None:
-    sys.stderr = open(_os.devnull, "w")
+    sys.stderr = open(os.devnull, "w")
+
+# ---------------------------------------------------------------------------
+# Block all network access — models must be pre-downloaded
+# ---------------------------------------------------------------------------
+import socket as _socket
+
+_original_socket_init = _socket.socket.__init__
+
+
+def _blocked_socket_init(self, *args, **kwargs):
+    raise OSError(
+        "Network access is disabled. "
+        "All required data (TotalSegmentator models) must be available locally. "
+        "Run 'python download_models.py' on a machine with internet access."
+    )
+
+
+_socket.socket.__init__ = _blocked_socket_init
+
+# Also disable TotalSegmentator usage statistics via environment
+os.environ["TOTALSEG_DISABLE_HTTP"] = "1"
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -139,6 +160,78 @@ def get_voxel_volume_mm3(dicom_file: str) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Bundled model support
+# ---------------------------------------------------------------------------
+
+
+def _setup_bundled_models() -> None:
+    """Point TotalSegmentator to model weights placed next to the executable.
+
+    End users should place a ``totalseg_data/`` folder (obtained via
+    ``python download_models.py``) next to the executable or in the
+    same directory as this script.  Expected layout::
+
+        SegmentLobes/           <- PyInstaller bundle directory
+        totalseg_data/          <- placed next to it
+          nnunet/
+            results/
+              Dataset291_.../
+              Dataset298_.../
+
+    Or when running from source::
+
+        segment_lobes.py
+        totalseg_data/
+          nnunet/
+            results/
+              ...
+    """
+    search_dirs = []
+
+    # 1. Next to the PyInstaller bundle directory
+    #    e.g. SegmentLobes/ is at /foo/SegmentLobes/, look at /foo/totalseg_data/
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        # --onedir: exe is inside the bundle dir, look next to the bundle
+        search_dirs.append(exe_dir.parent)
+        # Also check next to the exe itself (in case user puts it there)
+        search_dirs.append(exe_dir)
+
+    # 2. Next to this script (running from source)
+    search_dirs.append(Path(__file__).resolve().parent)
+
+    for base in search_dirs:
+        weights_dir = base / "totalseg_data" / "nnunet" / "results"
+        if weights_dir.is_dir() and any(weights_dir.iterdir()):
+            os.environ["TOTALSEG_WEIGHTS_PATH"] = str(weights_dir)
+            totalseg_home = base / "totalseg_data"
+            os.environ["TOTALSEG_HOME_DIR"] = str(totalseg_home)
+
+            # Ensure config.json exists with stats disabled
+            config_file = totalseg_home / "config.json"
+            if not config_file.exists():
+                import json
+                config_file.write_text(json.dumps({
+                    "totalseg_id": "offline",
+                    "send_usage_stats": False,
+                    "statistics_disclaimer_shown": True,
+                    "prediction_counter": 0,
+                }, indent=2))
+
+            logger.info("Using models from %s", weights_dir)
+            return
+
+    searched = [str(d / "totalseg_data") for d in search_dirs]
+    raise FileNotFoundError(
+        "No local TotalSegmentator models found.  "
+        "Internet access is disabled — models must be pre-downloaded.\n"
+        "Run 'python download_models.py' on a machine with internet access, "
+        "then place the totalseg_data/ folder next to the executable.\n"
+        f"Searched: {searched}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Segmentation
 # ---------------------------------------------------------------------------
 
@@ -161,6 +254,9 @@ def run_totalsegmentator(nifti_path: Path, output_dir: Path, use_gpu: bool | Non
         Path to the combined lobe segmentation file (``lobes.nii``).
     """
     from totalsegmentator.python_api import totalsegmentator
+
+    # Point TotalSegmentator to bundled models (if available)
+    _setup_bundled_models()
 
     # Determine device
     if use_gpu is None:

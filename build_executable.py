@@ -32,13 +32,16 @@ def build():
     print("This may take several minutes due to the large dependencies (PyTorch, TotalSegmentator).")
     print()
     
+    # Separator character for --add-data (: on Linux/Mac, ; on Windows)
+    sep = ";" if sys.platform == "win32" else ":"
+
     # Base PyInstaller command
     cmd = [
         "pyinstaller",
         "--name=SegmentLobes",
         "--windowed",  # No console window (GUI only)
         "--onedir",    # Directory bundle (avoids 4GB limit with --onefile)
-        "--add-data", f"segment_lobes.py{':' if sys.platform != 'win32' else ';'}.",
+        "--add-data", f"segment_lobes.py{sep}.",
         "--hidden-import=nibabel",
         "--hidden-import=SimpleITK",
         "--hidden-import=totalsegmentator",

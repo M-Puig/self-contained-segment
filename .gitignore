@@ -38,6 +38,7 @@ tmp/
 
 # Model weights (too large for git)
 .totalsegmentator/
+totalseg_data/
 
 # Test data
 test_dicoms/

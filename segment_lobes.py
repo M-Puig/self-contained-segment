@@ -49,9 +49,6 @@ def _blocked_socket_init(self, *args, **kwargs):
 
 _socket.socket.__init__ = _blocked_socket_init
 
-# Also disable TotalSegmentator usage statistics via environment
-os.environ["TOTALSEG_DISABLE_HTTP"] = "1"
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -231,6 +228,10 @@ def _setup_bundled_models() -> None:
     )
 
 
+# Run at import time so env vars are set before TotalSegmentator is loaded
+_setup_bundled_models()
+
+
 # ---------------------------------------------------------------------------
 # Segmentation
 # ---------------------------------------------------------------------------
@@ -255,9 +256,6 @@ def run_totalsegmentator(nifti_path: Path, output_dir: Path, use_gpu: bool | Non
     """
     from totalsegmentator.python_api import totalsegmentator
 
-    # Point TotalSegmentator to bundled models (if available)
-    _setup_bundled_models()
-
     # Determine device
     if use_gpu is None:
         try:
@@ -267,6 +265,26 @@ def run_totalsegmentator(nifti_path: Path, output_dir: Path, use_gpu: bool | Non
             use_gpu = False
 
     logger.info("Running TotalSegmentator (GPU=%s) …", use_gpu)
+
+    # --- Diagnostic: verify model paths before calling TotalSegmentator ---
+    try:
+        from totalsegmentator.config import get_weights_dir
+        weights_dir = Path(get_weights_dir())
+        logger.info("TOTALSEG_WEIGHTS_PATH env = %s", os.environ.get("TOTALSEG_WEIGHTS_PATH", "<not set>"))
+        logger.info("get_weights_dir() resolved to: %s", weights_dir)
+        logger.info("get_weights_dir() exists: %s", weights_dir.exists())
+        if weights_dir.exists():
+            contents = list(weights_dir.iterdir())
+            logger.info("Contents of weights dir: %s", [c.name for c in contents])
+            for task_id in (291, 298):
+                matches = list(weights_dir.glob(f"Dataset{task_id}_*"))
+                logger.info("  Task %d folders: %s (exist=%s)",
+                            task_id,
+                            [m.name for m in matches],
+                            [m.exists() for m in matches])
+    except Exception as diag_err:
+        logger.warning("Diagnostic check failed: %s", diag_err)
+    # --- End diagnostic ---
 
     output_dir.mkdir(parents=True, exist_ok=True)
 

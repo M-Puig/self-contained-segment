@@ -6,6 +6,7 @@ Provides a user-friendly graphical interface for selecting DICOM folders,
 configuring parameters, and viewing results.
 """
 
+import multiprocessing
 import sys
 import threading
 from pathlib import Path
@@ -331,10 +332,16 @@ class SegmentLoblobesGUI:
 
 
 def main():
+    # freeze_support() is required on Windows for PyInstaller + multiprocessing.
+    # Without it, each spawned worker re-executes this script and opens a new
+    # Tk window (Windows uses 'spawn' instead of 'fork').
+    multiprocessing.freeze_support()
+
     root = Tk()
     app = SegmentLoblobesGUI(root)
     root.mainloop()
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()

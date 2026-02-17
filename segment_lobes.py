@@ -32,26 +32,26 @@ if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
 
 # ---------------------------------------------------------------------------
-# Block outgoing internet access — models must be pre-downloaded.
-# Local/Unix sockets (used by multiprocessing.managers) are allowed.
+# Block outgoing HTTP(S) requests — models must be pre-downloaded.
+# We patch urllib3 (used by requests) rather than raw sockets so that
+# multiprocessing (which uses local TCP on Windows / Unix sockets on
+# Linux) keeps working.
 # ---------------------------------------------------------------------------
-import socket as _socket
+try:
+    import urllib3 as _urllib3
 
-_original_socket_init = _socket.socket.__init__
+    _original_urlopen = _urllib3.HTTPConnectionPool.urlopen
 
+    def _blocked_urlopen(self, method, url, *args, **kwargs):
+        raise _urllib3.exceptions.URLSchemeUnknown(
+            "Network access is disabled. "
+            "All required data (TotalSegmentator models) must be available locally. "
+            "Run 'python download_models.py' on a machine with internet access."
+        )
 
-def _blocked_socket_init(self, family=_socket.AF_INET, type=_socket.SOCK_STREAM, proto=0, fileno=None, *args, **kwargs):
-    # Allow Unix sockets (AF_UNIX) — needed by multiprocessing SyncManager
-    if family == _socket.AF_UNIX:
-        return _original_socket_init(self, family, type, proto, fileno, *args, **kwargs)
-    raise OSError(
-        "Network access is disabled. "
-        "All required data (TotalSegmentator models) must be available locally. "
-        "Run 'python download_models.py' on a machine with internet access."
-    )
-
-
-_socket.socket.__init__ = _blocked_socket_init
+    _urllib3.HTTPConnectionPool.urlopen = _blocked_urlopen
+except ImportError:
+    pass  # urllib3 not installed; requests won't work anyway
 
 # ---------------------------------------------------------------------------
 # Constants
